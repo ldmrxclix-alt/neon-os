@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON-OS</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --neon:#00ffe7;--neon2:#ff00c8;--neon3:#ffe600;--neon4:#00aaff;
+  --bg:#070b12;--bg2:#0c1220;--bg3:#111927;--bg4:#0f1720;
+  --text:#b8e8f8;--text2:#4a7a94;--text3:#2a4a5a;
+  --border:rgba(0,255,231,0.15);--border2:rgba(0,255,231,0.3);
+  --glass:rgba(7,11,18,0.95);--glass2:rgba(12,18,32,0.98);
+  --win-shadow:0 0 40px rgba(0,255,231,0.08),0 8px 32px rgba(0,0,0,0.6);
+}
+body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;overflow:hidden;height:100vh;width:100vw;user-select:none;}
+
+/* === WALLPAPER === */
+#wallpaper{position:fixed;inset:0;z-index:0;background:var(--bg);}
+#wallpaper .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,255,231,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,231,0.03) 1px,transparent 1px);background-size:50px 50px;}
+#wallpaper .glow1{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(255,0,200,0.07) 0%,transparent 70%);top:-100px;right:-100px;}
+#wallpaper .glow2{position:absolute;width:800px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(0,255,231,0.05) 0%,transparent 70%);bottom:-100px;left:10%;}
+#wallpaper .scanline{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;}
+
+/* === DESKTOP === */
+#desktop{position:fixed;inset:0 0 52px 0;z-index:1;}
+.icon-col{position:absolute;top:16px;left:16px;bottom:10px;display:flex;flex-direction:column;flex-wrap:wrap;align-content:flex-start;gap:6px;}
+.d-icon{width:76px;padding:10px 6px 8px;text-align:center;cursor:pointer;border:1px solid transparent;border-radius:6px;transition:all 0.15s;flex-shrink:0;}
+.d-icon:hover{background:rgba(0,255,231,0.06);border-color:var(--border);}
+.d-icon:active{transform:scale(0.95);}
+.d-icon .ic{font-size:28px;display:block;margin-bottom:5px;filter:drop-shadow(0 0 4px var(--neon));}
+.d-icon .lbl{font-size:9px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;}
+
+/* === WINDOWS === */
+.win{position:absolute;background:var(--glass2);border:1px solid var(--border);border-radius:8px;display:none;flex-direction:column;overflow:hidden;box-shadow:var(--win-shadow);z-index:100;min-width:320px;min-height:240px;}
+.win.open{display:flex;}
+.win.focused{border-color:rgba(0,255,231,0.35);box-shadow:0 0 0 1px rgba(0,255,231,0.1),0 0 60px rgba(0,255,231,0.08),0 12px 40px rgba(0,0,0,0.7);z-index:200;}
+.titlebar{height:34px;background:rgba(0,255,231,0.05);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:8px;flex-shrink:0;cursor:grab;}
+.titlebar:active{cursor:grabbing;}
+.tb-dot{width:11px;height:11px;border-radius:50%;cursor:pointer;transition:filter 0.15s;}
+.tb-dot.close{background:#ff5f57;}
+.tb-dot.min{background:#febc2e;}
+.tb-dot.max{background:#28c840;}
+.tb-dot:hover{filter:brightness(1.3);}
+.tb-title{font-size:10px;color:var(--neon);letter-spacing:3px;flex:1;font-family:'Orbitron',sans-serif;}
+.win-body{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+
+/* === TASKBAR === */
+#taskbar{position:fixed;bottom:0;left:0;right:0;height:52px;background:rgba(5,9,16,0.98);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:5px;z-index:9999;}
+.logo{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:900;color:var(--neon);letter-spacing:3px;padding-right:14px;border-right:1px solid var(--border);text-shadow:0 0 10px var(--neon);white-space:nowrap;}
+.tb-apps{display:flex;gap:4px;flex:1;overflow:hidden;}
+.tb-app{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 11px;cursor:pointer;border-radius:4px;letter-spacing:1px;transition:all 0.15s;white-space:nowrap;display:flex;align-items:center;gap:5px;}
+.tb-app:hover,.tb-app.active{color:var(--neon);border-color:rgba(0,255,231,0.4);background:rgba(0,255,231,0.07);}
+.tb-right{display:flex;align-items:center;gap:10px;padding-left:10px;border-left:1px solid var(--border);}
+#clock{font-size:11px;color:var(--neon);letter-spacing:2px;white-space:nowrap;}
+#date-disp{font-size:9px;color:var(--text2);letter-spacing:1px;}
+
+/* === STARTMENU === */
+#startmenu{position:fixed;bottom:52px;left:0;width:320px;background:var(--glass2);border:1px solid var(--border);border-radius:0 8px 0 0;padding:16px;z-index:9998;display:none;box-shadow:0 -4px 40px rgba(0,255,231,0.1);}
+#startmenu.open{display:block;}
+#startmenu h2{font-family:'Orbitron',sans-serif;font-size:10px;color:var(--neon);letter-spacing:4px;margin-bottom:12px;}
+.sm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.sm-icon{text-align:center;padding:10px 4px;cursor:pointer;border:1px solid transparent;border-radius:6px;transition:all 0.15s;}
+.sm-icon:hover{background:rgba(0,255,231,0.07);border-color:var(--border);}
+.sm-icon .ic{font-size:22px;display:block;margin-bottom:4px;}
+.sm-icon .lbl{font-size:8px;color:var(--text2);letter-spacing:0.5px;}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:rgba(0,255,231,0.2);border-radius:2px;}
+
+/* === TERMINAL === */
+#term-output{flex:1;padding:12px;overflow-y:auto;font-size:12px;line-height:1.7;}
+.t-line{color:var(--text);}
+.t-line.cmd{color:var(--neon);}
+.t-line.err{color:#ff4466;}
+.t-line.info{color:var(--neon3);}
+#term-input-row{display:flex;align-items:center;padding:8px 12px;border-top:1px solid var(--border);gap:6px;}
+#term-prompt{color:var(--neon);font-size:12px;white-space:nowrap;}
+#term-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;caret-color:var(--neon);}
+
+/* === FILE MANAGER === */
+#fm-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);}
+.fm-btn{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px;transition:all 0.12s;}
+.fm-btn:hover{color:var(--neon);border-color:var(--neon);}
+#fm-path{flex:1;background:rgba(0,255,231,0.04);border:1px solid var(--border);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;border-radius:4px;outline:none;}
+#fm-body{display:flex;flex:1;overflow:hidden;}
+#fm-sidebar{width:140px;border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.fm-side-item{padding:6px 10px;font-size:10px;color:var(--text2);cursor:pointer;border-radius:4px;letter-spacing:0.5px;transition:all 0.12s;}
+.fm-side-item:hover,.fm-side-item.active{color:var(--neon);background:rgba(0,255,231,0.07);}
+#fm-files{flex:1;padding:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;overflow-y:auto;align-content:start;}
+.fm-file{text-align:center;padding:10px 4px;cursor:pointer;border:1px solid transparent;border-radius:6px;transition:all 0.12s;}
+.fm-file:hover{background:rgba(0,255,231,0.07);border-color:var(--border);}
+.fm-file .fic{font-size:26px;display:block;margin-bottom:4px;}
+.fm-file .fname{font-size:9px;color:var(--text2);word-break:break-all;letter-spacing:0.3px;}
+
+/* === TEXT EDITOR === */
+#editor-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.ed-btn{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;cursor:pointer;border-radius:4px;transition:all 0.12s;}
+.ed-btn:hover{color:var(--neon);border-color:var(--neon);}
+#editor-filename{background:rgba(0,255,231,0.04);border:1px solid var(--border);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;border-radius:4px;outline:none;width:140px;}
+#editor-area{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.8;padding:14px;resize:none;caret-color:var(--neon);}
+
+/* === BROWSER === */
+#browser-toolbar{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.br-nav{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 9px;cursor:pointer;border-radius:4px;transition:all 0.12s;}
+.br-nav:hover{color:var(--neon);border-color:var(--neon);}
+#browser-url{flex:1;background:rgba(0,255,231,0.04);border:1px solid var(--border);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 12px;border-radius:4px;outline:none;}
+#browser-frame{flex:1;border:none;background:#fff;}
+#browser-proxy-notice{padding:20px;text-align:center;color:var(--text2);font-size:11px;line-height:2;}
+#browser-proxy-notice a{color:var(--neon);cursor:pointer;text-decoration:underline;}
+#proxy-url-input{width:100%;background:rgba(0,255,231,0.04);border:1px solid var(--border);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:11px;padding:8px 12px;border-radius:4px;outline:none;margin:8px 0;}
+.br-go{background:rgba(0,255,231,0.1);border:1px solid rgba(0,255,231,0.4);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 14px;cursor:pointer;border-radius:4px;letter-spacing:1px;transition:all 0.12s;}
+.br-go:hover{background:rgba(0,255,231,0.2);}
+#browser-tabs{display:flex;gap:4px;padding:6px 10px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
+.br-tab{padding:5px 14px;font-size:10px;color:var(--text2);cursor:pointer;border:1px solid var(--border);border-bottom:none;border-radius:4px 4px 0 0;letter-spacing:0.5px;white-space:nowrap;transition:all 0.12s;}
+.br-tab.active{color:var(--neon);background:rgba(0,255,231,0.07);border-color:rgba(0,255,231,0.3);}
+.br-tab-add{padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text2);border:1px solid transparent;border-radius:4px;}
+.br-tab-add:hover{color:var(--neon);}
+
+/* === MUSIC PLAYER === */
+#music-body{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px;gap:16px;overflow-y:auto;}
+.music-art{width:140px;height:140px;border-radius:8px;background:linear-gradient(135deg,rgba(0,255,231,0.1),rgba(255,0,200,0.1));border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:52px;flex-shrink:0;}
+.music-info{text-align:center;}
+.music-title{font-size:14px;color:var(--neon);letter-spacing:2px;margin-bottom:4px;}
+.music-artist{font-size:11px;color:var(--text2);}
+.music-progress{width:100%;height:3px;background:rgba(0,255,231,0.1);border-radius:2px;cursor:pointer;position:relative;}
+.music-progress-fill{height:100%;background:var(--neon);border-radius:2px;transition:width 0.5s;}
+.music-controls{display:flex;align-items:center;gap:16px;}
+.mc-btn{background:transparent;border:none;color:var(--text2);font-size:18px;cursor:pointer;transition:all 0.15s;padding:4px;}
+.mc-btn:hover{color:var(--neon);}
+.mc-btn.play{font-size:24px;color:var(--neon);}
+.music-vol{display:flex;align-items:center;gap:8px;width:100%;}
+.music-vol label{font-size:10px;color:var(--text2);}
+input[type=range]{accent-color:var(--neon);width:100%;cursor:pointer;}
+.music-playlist{width:100%;border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:2px;}
+.pl-item{padding:7px 10px;font-size:10px;cursor:pointer;border-radius:4px;letter-spacing:0.5px;transition:all 0.12s;display:flex;align-items:center;gap:8px;color:var(--text2);}
+.pl-item:hover,.pl-item.playing{color:var(--neon);background:rgba(0,255,231,0.07);}
+.pl-item .pl-n{width:16px;text-align:right;opacity:0.5;font-size:9px;}
+
+/* === SETTINGS === */
+#settings-body{flex:1;overflow-y:auto;padding:0;}
+.s-section{border-bottom:1px solid var(--border);padding:16px 20px;}
+.s-title{font-size:9px;color:var(--neon);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;font-family:'Orbitron',sans-serif;}
+.s-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,255,231,0.05);}
+.s-row:last-child{border-bottom:none;}
+.s-label{font-size:11px;color:var(--text);letter-spacing:0.5px;}
+.s-val{font-size:10px;color:var(--text2);}
+.s-toggle{position:relative;width:36px;height:20px;cursor:pointer;}
+.s-toggle input{opacity:0;width:0;height:0;}
+.s-slider{position:absolute;inset:0;background:rgba(0,255,231,0.1);border:1px solid var(--border);border-radius:10px;transition:0.2s;}
+.s-slider:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--text2);border-radius:50%;transition:0.2s;}
+.s-toggle input:checked+.s-slider{background:rgba(0,255,231,0.2);border-color:var(--neon);}
+.s-toggle input:checked+.s-slider:before{transform:translateX(16px);background:var(--neon);}
+.s-select{background:rgba(0,255,231,0.04);border:1px solid var(--border);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 8px;border-radius:4px;outline:none;cursor:pointer;}
+.s-select option{background:var(--bg2);}
+.color-swatch{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:border-color 0.12s;}
+.color-swatch.active{border-color:#fff;}
+.swatches{display:flex;gap:8px;}
+
+/* === CALENDAR === */
+#cal-body{flex:1;padding:16px;overflow-y:auto;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.cal-header h2{font-family:'Orbitron',sans-serif;font-size:12px;color:var(--neon);letter-spacing:2px;}
+.cal-nav{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:12px;padding:4px 10px;cursor:pointer;border-radius:4px;transition:all 0.12s;}
+.cal-nav:hover{color:var(--neon);border-color:var(--neon);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-day-hdr{text-align:center;font-size:9px;color:var(--text2);padding:4px;letter-spacing:1px;}
+.cal-day{text-align:center;padding:8px 4px;font-size:11px;cursor:pointer;border-radius:4px;border:1px solid transparent;transition:all 0.12s;color:var(--text2);}
+.cal-day:hover{background:rgba(0,255,231,0.07);border-color:var(--border);}
+.cal-day.today{color:var(--neon);border-color:rgba(0,255,231,0.3);background:rgba(0,255,231,0.07);}
+.cal-day.other{color:var(--text3);}
+.cal-time{margin-top:16px;border-top:1px solid var(--border);padding-top:12px;}
+.time-display{font-family:'Orbitron',sans-serif;font-size:32px;color:var(--neon);letter-spacing:4px;text-align:center;padding:10px;text-shadow:0 0 20px rgba(0,255,231,0.4);}
+.date-display{font-size:11px;color:var(--text2);text-align:center;letter-spacing:2px;}
+
+/* === APP STORE === */
+#appstore-body{flex:1;overflow-y:auto;padding:14px;}
+.as-search-row{display:flex;gap:8px;margin-bottom:14px;}
+#as-search{flex:1;background:rgba(0,255,231,0.04);border:1px solid var(--border);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:11px;padding:7px 12px;border-radius:4px;outline:none;}
+.as-category{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;}
+.as-cat-btn{background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:9px;padding:4px 10px;cursor:pointer;border-radius:4px;letter-spacing:1px;white-space:nowrap;transition:all 0.12s;}
+.as-cat-btn:hover,.as-cat-btn.active{color:var(--neon);border-color:var(--neon);background:rgba(0,255,231,0.07);}
+.as-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.as-card{background:rgba(0,255,231,0.03);border:1px solid var(--border);border-radius:6px;padding:12px;transition:all 0.15s;}
+.as-card:hover{border-color:rgba(0,255,231,0.3);background:rgba(0,255,231,0.06);}
+.as-card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.as-card-ic{font-size:24px;}
+.as-card-name{font-size:11px;color:var(--neon);letter-spacing:1px;}
+.as-card-dev{font-size:9px;color:var(--text2);}
+.as-card-desc{font-size:10px;color:var(--text2);line-height:1.6;margin-bottom:10px;}
+.as-card-footer{display:flex;align-items:center;justify-content:space-between;}
+.as-stars{color:var(--neon3);font-size:10px;}
+.as-install{background:rgba(0,255,231,0.1);border:1px solid rgba(0,255,231,0.3);color:var(--neon);font-family:'Share Tech Mono',monospace;font-size:9px;padding:4px 10px;cursor:pointer;border-radius:4px;letter-spacing:1px;transition:all 0.12s;}
+.as-install:hover{background:rgba(0,255,231,0.2);}
+.as-install.installed{color:var(--text2);border-color:var(--border);cursor:default;}
+
+/* === GAMES === */
+#games-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;overflow-y:auto;}
+#games-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;}
+.game-card{background:rgba(0,255,231,0.03);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all 0.15s;}
+.game-card:hover{background:rgba(0,255,231,0.08);border-color:rgba(0,255,231,0.4);}
+.game-card .gic{font-size:32px;display:block;margin-bottom:8px;}
+.game-card .gname{font-size:10px;color:var(--neon);letter-spacing:1px;}
+#game-area{width:100%;flex:1;display:none;flex-direction:column;align-items:center;gap:10px;}
+#game-back{align-self:flex-start;background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;border-radius:4px;}
+#game-back:hover{color:var(--neon);border-color:var(--neon);}
+#snake-canvas{border:1px solid var(--border);border-radius:4px;background:rgba(0,255,231,0.02);}
+.game-score{font-size:12px;color:var(--neon);letter-spacing:2px;}
+#tetris-canvas{border:1px solid var(--border);border-radius:4px;background:rgba(0,255,231,0.02);}
+
+/* === NOTIFICATIONS === */
+#notif-stack{position:fixed;top:14px;right:14px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.notif{background:var(--glass2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;min-width:220px;animation:slideIn 0.2s ease;pointer-events:all;}
+.notif-title{font-size:10px;color:var(--neon);letter-spacing:2px;margin-bottom:3px;}
+.notif-msg{font-size:10px;color:var(--text2);}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes fadeOut{from{opacity:1;}to{opacity:0;transform:translateX(30px);}}
+
+/* === CONTEXT MENU === */
+#ctx-menu{position:fixed;background:var(--glass2);border:1px solid var(--border);border-radius:6px;padding:4px;z-index:99990;display:none;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.ctx-item{padding:7px 14px;font-size:11px;cursor:pointer;border-radius:4px;transition:all 0.1s;color:var(--text2);letter-spacing:0.5px;}
+.ctx-item:hover{color:var(--neon);background:rgba(0,255,231,0.07);}
+.ctx-sep{height:1px;background:var(--border);margin:3px 0;}
+
+/* === BOOT SCREEN === */
+#boot{position:fixed;inset:0;background:#000;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+.boot-logo{font-family:'Orbitron',sans-serif;font-size:48px;font-weight:900;color:var(--neon);letter-spacing:8px;text-shadow:0 0 30px var(--neon);}
+.boot-sub{font-size:11px;color:var(--text2);letter-spacing:4px;}
+.boot-bar{width:300px;height:2px;background:rgba(0,255,231,0.1);border-radius:1px;overflow:hidden;}
+.boot-bar-fill{height:100%;background:var(--neon);width:0;animation:bootLoad 2.5s ease forwards;}
+.boot-msg{font-size:10px;color:var(--text2);letter-spacing:1px;min-height:16px;}
+@keyframes bootLoad{0%{width:0}60%{width:70%}80%{width:85%}100%{width:100%}}
+</style>
+</head>
+<body>
+
+<!-- BOOT -->
+<div id="boot">
+  <div class="boot-logo">NEON-OS</div>
+  <div class="boot-sub">CYBERPUNK DESKTOP ENVIRONMENT v3.1</div>
+  <div class="boot-bar"><div class="boot-bar-fill"></div></div>
+  <div class="boot-msg" id="boot-msg">Initializing kernel...</div>
+</div>
+
+<!-- WALLPAPER -->
+<div id="wallpaper">
+  <div class="grid"></div>
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+  <div class="scanline"></div>
+</div>
+
+<!-- DESKTOP ICONS -->
+<div id="desktop">
+  <div class="icon-col">
+    <div class="d-icon" ondblclick="openApp('browser')"><span class="ic">🌐</span><span class="lbl">Browser</span></div>
+    <div class="d-icon" ondblclick="openApp('terminal')"><span class="ic">💻</span><span class="lbl">Terminal</span></div>
+    <div class="d-icon" ondblclick="openApp('files')"><span class="ic">📁</span><span class="lbl">Files</span></div>
+    <div class="d-icon" ondblclick="openApp('editor')"><span class="ic">📝</span><span class="lbl">Editor</span></div>
+    <div class="d-icon" ondblclick="openApp('music')"><span class="ic">🎵</span><span class="lbl">Music</span></div>
+    <div class="d-icon" ondblclick="openApp('calendar')"><span class="ic">📅</span><span class="lbl">Calendar</span></div>
+    <div class="d-icon" ondblclick="openApp('appstore')"><span class="ic">🛒</span><span class="lbl">App Store</span></div>
+    <div class="d-icon" ondblclick="openApp('games')"><span class="ic">🎮</span><span class="lbl">Games</span></div>
+    <div class="d-icon" ondblclick="openApp('settings')"><span class="ic">⚙️</span><span class="lbl">Settings</span></div>
+  </div>
+</div>
+
+<!-- ===================== WINDOWS ===================== -->
+
+<!-- BROWSER -->
+<div class="win" id="win-browser" style="width:800px;height:560px;top:60px;left:120px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-browser')">
+    <span class="tb-dot close" onclick="closeApp('browser')"></span>
+    <span class="tb-dot min" onclick="minApp('browser')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-browser')"></span>
+    <span class="tb-title">BROWSER // SCRAMJET PROXY</span>
+  </div>
+  <div id="browser-tabs">
+    <div class="br-tab active" id="tab-0">New Tab</div>
+    <div class="br-tab-add" onclick="addBrowserTab()">+</div>
+  </div>
+  <div class="win-body">
+    <div id="browser-toolbar">
+      <button class="br-nav" onclick="brBack()">◀</button>
+      <button class="br-nav" onclick="brFwd()">▶</button>
+      <button class="br-nav" onclick="brRefresh()">↻</button>
+      <input id="browser-url" type="text" placeholder="Enter URL or search..." onkeydown="if(event.key==='Enter')brNavigate()">
+      <button class="br-go" onclick="brNavigate()">GO</button>
+      <button class="br-nav" onclick="showProxyConfig()" title="Proxy Settings">⚙</button>
+    </div>
+    <div id="browser-proxy-notice" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;">
+      <div style="font-size:32px;margin-bottom:4px;">🌐</div>
+      <div style="color:var(--neon);font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:3px;">SCRAMJET PROXY</div>
+      <div style="color:var(--text2);font-size:10px;max-width:380px;text-align:center;line-height:1.8;">
+        Paste your <span style="color:var(--neon)">Scramjet Server URL</span> below to enable full proxy browsing.<br>
+        Deploy the backend on <a onclick="openExternal('https://render.com')">Render.com</a> or <a onclick="openExternal('https://railway.app')">Railway.app</a> using the Scramjet server repo.
+      </div>
+      <div style="width:100%;max-width:420px;">
+        <div style="font-size:9px;color:var(--text2);letter-spacing:1px;margin-bottom:4px;">SCRAMJET SERVER URL</div>
+        <input id="proxy-url-input" type="text" placeholder="https://your-scramjet-server.onrender.com">
+        <button class="br-go" style="width:100%;margin-top:4px;" onclick="saveProxyUrl()">CONNECT PROXY</button>
+      </div>
+      <div style="font-size:9px;color:var(--text3);letter-spacing:1px;max-width:380px;text-align:center;line-height:1.8;border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+        <span style="color:var(--neon3)">HOW TO DEPLOY:</span><br>
+        1. Fork <a onclick="openExternal('https://github.com/MercuryWorkshop/scramjet')">MercuryWorkshop/scramjet</a><br>
+        2. Connect to Render.com → New Web Service<br>
+        3. Set build: <span style="color:var(--neon)">npm install && npm run build</span><br>
+        4. Set start: <span style="color:var(--neon)">npm run server</span><br>
+        5. Paste the URL above and hit CONNECT
+      </div>
+    </div>
+    <iframe id="browser-frame" style="display:none;flex:1;border:none;"></iframe>
+  </div>
+</div>
+
+<!-- TERMINAL -->
+<div class="win" id="win-terminal" style="width:620px;height:420px;top:80px;left:140px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-terminal')">
+    <span class="tb-dot close" onclick="closeApp('terminal')"></span>
+    <span class="tb-dot min" onclick="minApp('terminal')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-terminal')"></span>
+    <span class="tb-title">TERMINAL // NEON-SHELL</span>
+  </div>
+  <div class="win-body">
+    <div id="term-output"></div>
+    <div id="term-input-row">
+      <span id="term-prompt">root@neon-os:~$</span>
+      <input id="term-input" type="text" autocomplete="off" spellcheck="false" onkeydown="handleTermKey(event)" placeholder="">
+    </div>
+  </div>
+</div>
+
+<!-- FILE MANAGER -->
+<div class="win" id="win-files" style="width:680px;height:460px;top:90px;left:160px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-files')">
+    <span class="tb-dot close" onclick="closeApp('files')"></span>
+    <span class="tb-dot min" onclick="minApp('files')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-files')"></span>
+    <span class="tb-title">FILE MANAGER // NEON-FS</span>
+  </div>
+  <div class="win-body">
+    <div id="fm-toolbar">
+      <button class="fm-btn" onclick="fmBack()">◀</button>
+      <button class="fm-btn" onclick="fmUp()">↑</button>
+      <input id="fm-path" type="text" value="/home/user" readonly>
+      <button class="fm-btn" onclick="fmNewFolder()">+ Folder</button>
+    </div>
+    <div id="fm-body">
+      <div id="fm-sidebar">
+        <div class="fm-side-item active" onclick="fmGo('/home/user')">🏠 Home</div>
+        <div class="fm-side-item" onclick="fmGo('/home/user/Documents')">📄 Documents</div>
+        <div class="fm-side-item" onclick="fmGo('/home/user/Downloads')">⬇️ Downloads</div>
+        <div class="fm-side-item" onclick="fmGo('/home/user/Music')">🎵 Music</div>
+        <div class="fm-side-item" onclick="fmGo('/home/user/Pictures')">🖼️ Pictures</div>
+        <div class="fm-side-item" onclick="fmGo('/home/user/Videos')">🎬 Videos</div>
+        <div class="fm-side-item" onclick="fmGo('/')">💾 Root</div>
+        <div class="fm-side-item" onclick="fmGo('/tmp')">🗑️ Temp</div>
+      </div>
+      <div id="fm-files"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TEXT EDITOR -->
+<div class="win" id="win-editor" style="width:640px;height:480px;top:70px;left:150px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-editor')">
+    <span class="tb-dot close" onclick="closeApp('editor')"></span>
+    <span class="tb-dot min" onclick="minApp('editor')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-editor')"></span>
+    <span class="tb-title">EDITOR // NEON-TEXT</span>
+  </div>
+  <div class="win-body">
+    <div id="editor-toolbar">
+      <input id="editor-filename" type="text" value="untitled.txt">
+      <button class="ed-btn" onclick="edNew()">New</button>
+      <button class="ed-btn" onclick="edSave()">Save</button>
+      <button class="ed-btn" onclick="edClear()">Clear</button>
+      <span style="flex:1"></span>
+      <span id="ed-wordcount" style="font-size:9px;color:var(--text2);">0 words</span>
+    </div>
+    <textarea id="editor-area" spellcheck="false" placeholder="// Start typing..." oninput="updateWordCount()"></textarea>
+  </div>
+</div>
+
+<!-- MUSIC PLAYER -->
+<div class="win" id="win-music" style="width:340px;height:540px;top:80px;left:200px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-music')">
+    <span class="tb-dot close" onclick="closeApp('music')"></span>
+    <span class="tb-dot min" onclick="minApp('music')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-music')"></span>
+    <span class="tb-title">MUSIC // NEON-AUDIO</span>
+  </div>
+  <div class="win-body">
+    <div id="music-body">
+      <div class="music-art" id="music-art">🎵</div>
+      <div class="music-info">
+        <div class="music-title" id="music-title">NO TRACK LOADED</div>
+        <div class="music-artist" id="music-artist">Select a track to play</div>
+      </div>
+      <div style="width:100%;">
+        <div class="music-progress" id="music-progress" onclick="seekMusic(event)">
+          <div class="music-progress-fill" id="music-fill" style="width:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:9px;color:var(--text2);" id="music-cur">0:00</span>
+          <span style="font-size:9px;color:var(--text2);" id="music-dur">0:00</span>
+        </div>
+      </div>
+      <div class="music-controls">
+        <button class="mc-btn" onclick="musicPrev()">⏮</button>
+        <button class="mc-btn" onclick="musicShuffle()">🔀</button>
+        <button class="mc-btn play" id="music-play-btn" onclick="togglePlay()">▶</button>
+        <button class="mc-btn" onclick="musicRepeat()">🔁</button>
+        <button class="mc-btn" onclick="musicNext()">⏭</button>
+      </div>
+      <div class="music-vol">
+        <label>VOL</label>
+        <input type="range" min="0" max="100" value="80" id="music-vol" oninput="setVolume(this.value)">
+        <span style="font-size:9px;color:var(--text2);" id="vol-val">80</span>
+      </div>
+      <div style="width:100%;text-align:center;margin:-4px 0;">
+        <label style="font-size:10px;color:var(--text2);cursor:pointer;border:1px solid var(--border);padding:5px 14px;border-radius:4px;display:inline-block;transition:all 0.12s;" onmouseover="this.style.color='var(--neon)'" onmouseout="this.style.color='var(--text2)'" onclick="document.getElementById('music-file-input').click()">
+          + Upload Music Files
+        </label>
+        <input type="file" id="music-file-input" accept="audio/*" multiple style="display:none" onchange="loadMusicFiles(event)">
+      </div>
+      <div class="music-playlist" id="music-playlist">
+        <div style="font-size:9px;color:var(--text3);text-align:center;padding:8px;">No tracks — upload files above</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CALENDAR / CLOCK -->
+<div class="win" id="win-calendar" style="width:380px;height:480px;top:80px;left:200px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-calendar')">
+    <span class="tb-dot close" onclick="closeApp('calendar')"></span>
+    <span class="tb-dot min" onclick="minApp('calendar')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-calendar')"></span>
+    <span class="tb-title">CALENDAR // NEON-TIME</span>
+  </div>
+  <div class="win-body">
+    <div id="cal-body">
+      <div class="cal-time">
+        <div class="time-display" id="cal-clock">00:00:00</div>
+        <div class="date-display" id="cal-date-full"></div>
+      </div>
+      <div style="margin-top:14px;">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="calPrev()">◀</button>
+          <h2 id="cal-month-label"></h2>
+          <button class="cal-nav" onclick="calNext()">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP STORE -->
+<div class="win" id="win-appstore" style="width:700px;height:520px;top:80px;left:130px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-appstore')">
+    <span class="tb-dot close" onclick="closeApp('appstore')"></span>
+    <span class="tb-dot min" onclick="minApp('appstore')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-appstore')"></span>
+    <span class="tb-title">APP STORE // NEON-MARKET</span>
+  </div>
+  <div class="win-body">
+    <div id="appstore-body">
+      <div class="as-search-row">
+        <input id="as-search" type="text" placeholder="Search apps..." oninput="filterApps()">
+      </div>
+      <div class="as-category" id="as-cats"></div>
+      <div class="as-grid" id="as-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- GAMES -->
+<div class="win" id="win-games" style="width:560px;height:500px;top:70px;left:160px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-games')">
+    <span class="tb-dot close" onclick="closeApp('games')"></span>
+    <span class="tb-dot min" onclick="minApp('games')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-games')"></span>
+    <span class="tb-title">GAMES // NEON-ARCADE</span>
+  </div>
+  <div class="win-body">
+    <div id="games-body">
+      <div id="games-menu">
+        <div class="game-card" onclick="launchGame('snake')"><span class="gic">🐍</span><span class="gname">SNAKE</span></div>
+        <div class="game-card" onclick="launchGame('tetris')"><span class="gic">🟦</span><span class="gname">TETRIS</span></div>
+        <div class="game-card" onclick="launchGame('memory')"><span class="gic">🃏</span><span class="gname">MEMORY</span></div>
+        <div class="game-card" onclick="launchGame('tictactoe')"><span class="gic">❌</span><span class="gname">TIC-TAC-TOE</span></div>
+        <div class="game-card" onclick="launchGame('pong')"><span class="gic">🏓</span><span class="gname">PONG</span></div>
+        <div class="game-card" onclick="launchGame('flappy')"><span class="gic">🐦</span><span class="gname">FLAPPY</span></div>
+      </div>
+      <div id="game-area">
+        <button id="game-back" onclick="exitGame()">← BACK TO ARCADE</button>
+        <div class="game-score" id="game-score">SCORE: 0</div>
+        <canvas id="game-canvas" width="360" height="320"></canvas>
+        <div id="game-instructions" style="font-size:10px;color:var(--text2);letter-spacing:1px;text-align:center;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="win" id="win-settings" style="width:500px;height:520px;top:80px;left:180px;">
+  <div class="titlebar" onmousedown="startDrag(event,'win-settings')">
+    <span class="tb-dot close" onclick="closeApp('settings')"></span>
+    <span class="tb-dot min" onclick="minApp('settings')"></span>
+    <span class="tb-dot max" onclick="maxApp('win-settings')"></span>
+    <span class="tb-title">SETTINGS // NEON-CONFIG</span>
+  </div>
+  <div class="win-body">
+    <div id="settings-body">
+      <div class="s-section">
+        <div class="s-title">System</div>
+        <div class="s-row"><span class="s-label">OS Name</span><span class="s-val">NEON-OS v3.1</span></div>
+        <div class="s-row"><span class="s-label">Kernel</span><span class="s-val">neon-kernel-6.4</span></div>
+        <div class="s-row"><span class="s-label">User</span><span class="s-val">root</span></div>
+        <div class="s-row"><span class="s-label">Uptime</span><span class="s-val" id="s-uptime">0:00</span></div>
+      </div>
+      <div class="s-section">
+        <div class="s-title">Display</div>
+        <div class="s-row">
+          <span class="s-label">Accent Color</span>
+          <div class="swatches">
+            <div class="color-swatch active" style="background:#00ffe7;" onclick="setAccent('#00ffe7','#ff00c8')"></div>
+            <div class="color-swatch" style="background:#ff00c8;" onclick="setAccent('#ff00c8','#00ffe7')"></div>
+            <div class="color-swatch" style="background:#ffe600;" onclick="setAccent('#ffe600','#ff6600')"></div>
+            <div class="color-swatch" style="background:#00aaff;" onclick="setAccent('#00aaff','#ff00c8')"></div>
+            <div class="color-swatch" style="background:#00ff88;" onclick="setAccent('#00ff88','#00aaff')"></div>
+          </div>
+        </div>
+        <div class="s-row"><span class="s-label">Scanlines</span><label class="s-toggle"><input type="checkbox" id="tog-scanlines" checked onchange="toggleScanlines()"><span class="s-slider"></span></label></div>
+        <div class="s-row"><span class="s-label">Grid Wallpaper</span><label class="s-toggle"><input type="checkbox" id="tog-grid" checked onchange="toggleGrid()"><span class="s-slider"></span></label></div>
+        <div class="s-row"><span class="s-label">Animations</span><label class="s-toggle"><input type="checkbox" checked><span class="s-slider"></span></label></div>
+      </div>
+      <div class="s-section">
+        <div class="s-title">Proxy / Browser</div>
+        <div class="s-row"><span class="s-label">Scramjet Server URL</span><span class="s-val" id="s-proxy-url">Not configured</span></div>
+        <div class="s-row"><span class="s-label">Proxy Status</span><span class="s-val" id="s-proxy-status" style="color:#ff4466;">DISCONNECTED</span></div>
+        <div style="padding-top:8px;"><button class="ed-btn" onclick="openApp('browser');closeApp('settings')">Configure Proxy →</button></div>
+      </div>
+      <div class="s-section">
+        <div class="s-title">About</div>
+        <div class="s-row"><span class="s-label">Build</span><span class="s-val">NEON-OS-2025.1</span></div>
+        <div class="s-row"><span class="s-label">Engine</span><span class="s-val">Chromium/WebKit</span></div>
+        <div class="s-row"><span class="s-label">Proxy Engine</span><span class="s-val">Scramjet 0.x</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <div class="logo" onclick="toggleStart()">⬡ NEON-OS</div>
+  <div class="tb-apps" id="tb-apps"></div>
+  <div class="tb-right">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;">
+      <div id="clock"></div>
+      <div id="date-disp"></div>
+    </div>
+  </div>
+</div>
+
+<!-- START MENU -->
+<div id="startmenu">
+  <h2>⬡ NEON-OS LAUNCHER</h2>
+  <div class="sm-grid">
+    <div class="sm-icon" onclick="openApp('browser');toggleStart()"><span class="ic">🌐</span><span class="lbl">Browser</span></div>
+    <div class="sm-icon" onclick="openApp('terminal');toggleStart()"><span class="ic">💻</span><span class="lbl">Terminal</span></div>
+    <div class="sm-icon" onclick="openApp('files');toggleStart()"><span class="ic">📁</span><span class="lbl">Files</span></div>
+    <div class="sm-icon" onclick="openApp('editor');toggleStart()"><span class="ic">📝</span><span class="lbl">Editor</span></div>
+    <div class="sm-icon" onclick="openApp('music');toggleStart()"><span class="ic">🎵</span><span class="lbl">Music</span></div>
+    <div class="sm-icon" onclick="openApp('calendar');toggleStart()"><span class="ic">📅</span><span class="lbl">Calendar</span></div>
+    <div class="sm-icon" onclick="openApp('appstore');toggleStart()"><span class="ic">🛒</span><span class="lbl">App Store</span></div>
+    <div class="sm-icon" onclick="openApp('games');toggleStart()"><span class="ic">🎮</span><span class="lbl">Games</span></div>
+    <div class="sm-icon" onclick="openApp('settings');toggleStart()"><span class="ic">⚙️</span><span class="lbl">Settings</span></div>
+  </div>
+  <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;">
+    <span style="font-size:9px;color:var(--text2);" id="sm-user">root@neon-os</span>
+    <button onclick="reboot()" style="background:transparent;border:1px solid var(--border);color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:9px;padding:3px 8px;cursor:pointer;border-radius:3px;" onmouseover="this.style.color='#ff4466'" onmouseout="this.style.color='var(--text2)'">⏻ Reboot</button>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div id="notif-stack"></div>
+
+<!-- CONTEXT MENU -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxAction('browser')">🌐 Open Browser</div>
+  <div class="ctx-item" onclick="ctxAction('terminal')">💻 Open Terminal</div>
+  <div class="ctx-item" onclick="ctxAction('files')">📁 Open Files</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('settings')">⚙️ Settings</div>
+  <div class="ctx-item" onclick="ctxAction('appstore')">🛒 App Store</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="reboot()">⏻ Reboot</div>
+</div>
+
+<script>
+// =========== BOOT ===========
+const bootMsgs=['Initializing kernel...','Loading NEON-OS modules...','Mounting virtual filesystem...','Starting window manager...','Loading system apps...','Connecting proxy engine...','System ready.'];
+let bm=0;
+const bmEl=document.getElementById('boot-msg');
+const bmInt=setInterval(()=>{bm++;if(bm<bootMsgs.length){bmEl.textContent=bootMsgs[bm];}},350);
+setTimeout(()=>{
+  clearInterval(bmInt);
+  document.getElementById('boot').style.animation='fadeOut 0.6s ease forwards';
+  document.getElementById('boot').style.opacity='0';
+  setTimeout(()=>{document.getElementById('boot').style.display='none';notify('NEON-OS','System ready. Welcome, root.');},600);
+},2800);
+
+// =========== STATE ===========
+let openApps={},proxyUrl='',zTop=100;
+let musicFiles=[],musicIdx=0,musicPlaying=false,musicRepeatMode=false,musicShuffleMode=false;
+let audioEl=null;
+const fs={
+  '/':['home','tmp','bin','etc','var'],
+  '/home':['user'],
+  '/home/user':['Documents','Downloads','Music','Pictures','Videos','readme.txt','config.json'],
+  '/home/user/Documents':['report.txt','notes.md','project.docx'],
+  '/home/user/Downloads':['setup.zip','image.png','data.csv'],
+  '/home/user/Music':['track1.mp3','track2.mp3'],
+  '/home/user/Pictures':['wallpaper.png','screenshot.png'],
+  '/home/user/Videos':['demo.mp4'],
+  '/tmp':['session.log','cache.tmp'],
+  '/bin':['bash','ls','cat','grep'],
+  '/etc':['hosts','config','passwd'],
+  '/var':['log','cache','tmp']
+};
+let fmPath='/home/user',fmHistory=['/home/user'];
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+let termHistory=[],termHistIdx=-1;
+let snakeGame=null,tetrisGame=null,currentGame=null;
+let startTime=Date.now();
+
+// =========== WINDOW MANAGEMENT ===========
+function openApp(name){
+  const w=document.getElementById('win-'+name);
+  if(!w)return;
+  w.classList.add('open');
+  focusWin('win-'+name);
+  openApps[name]=true;
+  updateTaskbar();
+  if(name==='terminal'&&document.getElementById('term-output').children.length===0)initTerminal();
+  if(name==='files')renderFiles();
+  if(name==='calendar')renderCalendar();
+  if(name==='appstore')renderAppStore();
+  if(name==='settings')updateSettings();
+  document.getElementById('startmenu').classList.remove('open');
+}
+function closeApp(name){
+  const w=document.getElementById('win-'+name);
+  if(w){w.classList.remove('open');w.classList.remove('focused');}
+  delete openApps[name];
+  updateTaskbar();
+}
+function minApp(name){
+  const w=document.getElementById('win-'+name);
+  if(w)w.classList.remove('open');
+  updateTaskbar();
+}
+function maxApp(id){
+  const w=document.getElementById(id);
+  if(!w)return;
+  if(w.dataset.maxed==='1'){
+    w.style.cssText=w.dataset.prev||'';
+    w.dataset.maxed='0';
+  } else {
+    w.dataset.prev=w.style.cssText;
+    w.style.left='0';w.style.top='0';
+    w.style.width='100vw';w.style.height='calc(100vh - 52px)';
+    w.style.borderRadius='0';
+    w.dataset.maxed='1';
+  }
+}
+function focusWin(id){
+  document.querySelectorAll('.win').forEach(w=>w.classList.remove('focused'));
+  const w=document.getElementById(id);
+  if(w){w.classList.add('focused');w.style.zIndex=++zTop;}
+}
+function updateTaskbar(){
+  const c=document.getElementById('tb-apps');
+  c.innerHTML='';
+  const apps={browser:'🌐 Browser',terminal:'💻 Terminal',files:'📁 Files',editor:'📝 Editor',music:'🎵 Music',calendar:'📅 Calendar',appstore:'🛒 Store',games:'🎮 Games',settings:'⚙️ Settings'};
+  Object.keys(openApps).forEach(k=>{
+    if(!apps[k])return;
+    const b=document.createElement('button');
+    b.className='tb-app';
+    const w=document.getElementById('win-'+k);
+    if(w&&w.classList.contains('open'))b.classList.add('active');
+    b.textContent=apps[k];
+    b.onclick=()=>{
+      const ww=document.getElementById('win-'+k);
+      if(ww&&ww.classList.contains('open')){ww.classList.remove('open');}
+      else{ww.classList.add('open');focusWin('win-'+k);}
+      updateTaskbar();
+    };
+    c.appendChild(b);
+  });
+}
+
+// =========== DRAG ===========
+function startDrag(e,id){
+  const w=document.getElementById(id);
+  focusWin(id);
+  if(w.dataset.maxed==='1')return;
+  const ox=e.clientX-w.offsetLeft,oy=e.clientY-w.offsetTop;
+  function move(ev){
+    w.style.left=Math.max(0,ev.clientX-ox)+'px';
+    w.style.top=Math.max(0,Math.min(ev.clientY-oy,window.innerHeight-84))+'px';
+  }
+  function up(){document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up);}
+  document.addEventListener('mousemove',move);
+  document.addEventListener('mouseup',up);
+}
+
+// =========== CLOCK ===========
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0');
+  const m=String(now.getMinutes()).padStart(2,'0');
+  const s=String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent=h+':'+m+':'+s;
+  document.getElementById('date-disp').textContent=now.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  if(document.getElementById('win-calendar').classList.contains('open')){
+    document.getElementById('cal-clock').textContent=h+':'+m+':'+s;
+    document.getElementById('cal-date-full').textContent=now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  }
+  const up=Math.floor((Date.now()-startTime)/1000);
+  const um=Math.floor(up/60),us=up%60;
+  const sel=document.getElementById('s-uptime');
+  if(sel)sel.textContent=um+':'+String(us).padStart(2,'0');
+}
+setInterval(updateClock,1000);updateClock();
+
+// =========== TERMINAL ===========
+function initTerminal(){
+  termPrint('info','  _   _ ___  ___  _  _       ___  ___');
+  termPrint('info','  \\  | |__  |  | |\\ |       |  | |__');
+  termPrint('info','   \\_| |___ |__| | \\|  ___  |__| ___| v3.1');
+  termPrint('','');
+  termPrint('text','Welcome to NEON-OS Terminal. Type <span style="color:var(--neon)">help</span> for commands.');
+  termPrint('','');
+}
+function termPrint(type,msg){
+  const d=document.getElementById('term-output');
+  const l=document.createElement('div');
+  l.className='t-line '+(type==='cmd'?'cmd':type==='err'?'err':type==='info'?'info':'');
+  l.innerHTML=type==='cmd'?'<span style="color:var(--neon2)">root@neon-os:~$</span> '+msg:msg;
+  d.appendChild(l);
+  d.scrollTop=d.scrollHeight;
+}
+function handleTermKey(e){
+  const inp=document.getElementById('term-input');
+  if(e.key==='Enter'){
+    const cmd=inp.value.trim();
+    if(!cmd)return;
+    termHistory.unshift(cmd);termHistIdx=-1;
+    termPrint('cmd',cmd);
+    inp.value='';
+    execCmd(cmd);
+  } else if(e.key==='ArrowUp'){
+    if(termHistIdx<termHistory.length-1){termHistIdx++;inp.value=termHistory[termHistIdx];}
+    e.preventDefault();
+  } else if(e.key==='ArrowDown'){
+    if(termHistIdx>0){termHistIdx--;inp.value=termHistory[termHistIdx];}
+    else{termHistIdx=-1;inp.value='';}
+    e.preventDefault();
+  }
+}
+function execCmd(c){
+  const parts=c.split(' ');
+  const cmd=parts[0].toLowerCase();
+  const args=parts.slice(1);
+  const cmds={
+    help:()=>termPrint('',`Available: <span style="color:var(--neon)">ls, cd, pwd, cat, echo, clear, whoami, date, uname, ps, neofetch, open, help</span>`),
+    clear:()=>{document.getElementById('term-output').innerHTML='';},
+    whoami:()=>termPrint('','root'),
+    pwd:()=>termPrint('',fmPath),
+    date:()=>termPrint('',new Date().toString()),
+    uname:()=>termPrint('','NEON-OS neon-kernel-6.4 #1 SMP x86_64 GNU/Linux'),
+    ls:()=>{const p=args[0]||fmPath;const items=fs[p]||[];termPrint('',items.map(i=>i.includes('.')?'<span style="color:var(--text)">'+i+'</span>':'<span style="color:var(--neon4)">'+i+'</span>').join('  '));},
+    cd:()=>{
+      const t=args[0];if(!t){fmPath='/home/user';return;}
+      const np=t.startsWith('/')?t:(fmPath+'/'+t).replace('//','/');;
+      if(fs[np]!==undefined){fmPath=np;document.getElementById('term-prompt').textContent='root@neon-os:'+fmPath+'$';}
+      else termPrint('err','cd: no such directory: '+t);
+    },
+    cat:()=>{const f=args[0];if(!f){termPrint('err','cat: missing operand');return;}termPrint('','[file contents of '+f+' would appear here]');},
+    echo:()=>termPrint('',args.join(' ')),
+    ps:()=>{termPrint('','PID  CMD');['1 systemd','42 neon-wm','88 terminal','99 browser'].forEach(p=>termPrint('',p));},
+    neofetch:()=>{
+      termPrint('info','       __  ___  ___  _  _         OS: NEON-OS v3.1');
+      termPrint('info','      |  | |__  |  | |\\ |         Kernel: neon-6.4');
+      termPrint('info','      |__| |___ |__| | \\|         Shell: neon-bash');
+      termPrint('info','                                   DE: Cyberpunk WM');
+      termPrint('info','                                   RAM: 8192MB');
+    },
+    open:()=>{if(args[0])openApp(args[0]);else termPrint('err','open: specify app name');},
+    clear2:()=>{}
+  };
+  if(cmds[cmd])cmds[cmd]();
+  else termPrint('err','bash: '+cmd+': command not found');
+}
+
+// =========== FILE MANAGER ===========
+function renderFiles(){
+  const items=fs[fmPath]||[];
+  document.getElementById('fm-path').value=fmPath;
+  const c=document.getElementById('fm-files');
+  c.innerHTML='';
+  items.forEach(name=>{
+    const isDir=!name.includes('.');
+    const ext=name.split('.').pop();
+    const icons={txt:'📄',md:'📝',json:'📋',zip:'📦',png:'🖼️',jpg:'🖼️',mp3:'🎵',mp4:'🎬',csv:'📊',docx:'📄',log:'📜',tmp:'🗑️'};
+    const ic=isDir?'📁':(icons[ext]||'📄');
+    const el=document.createElement('div');
+    el.className='fm-file';
+    el.innerHTML=`<span class="fic">${ic}</span><span class="fname">${name}</span>`;
+    if(isDir)el.ondblclick=()=>fmGo(fmPath+'/'+name);
+    c.appendChild(el);
+  });
+}
+function fmGo(path){
+  if(fs[path]!==undefined){fmHistory.push(path);fmPath=path;renderFiles();}
+  document.querySelectorAll('.fm-side-item').forEach(el=>el.classList.remove('active'));
+}
+function fmBack(){if(fmHistory.length>1){fmHistory.pop();fmPath=fmHistory[fmHistory.length-1];renderFiles();}}
+function fmUp(){const p=fmPath.split('/').slice(0,-1).join('/')||'/';fmGo(p);}
+function fmNewFolder(){
+  const name=prompt('Folder name:');
+  if(name){
+    if(!fs[fmPath])fs[fmPath]=[];
+    fs[fmPath].push(name);
+    fs[fmPath+'/'+name]=[];
+    renderFiles();
+    notify('File Manager','Folder "'+name+'" created.');
+  }
+}
+
+// =========== EDITOR ===========
+function edNew(){document.getElementById('editor-filename').value='untitled.txt';document.getElementById('editor-area').value='';updateWordCount();}
+function edSave(){notify('Editor','File "'+document.getElementById('editor-filename').value+'" saved.');}
+function edClear(){document.getElementById('editor-area').value='';updateWordCount();}
+function updateWordCount(){const txt=document.getElementById('editor-area').value.trim();const wc=txt?txt.split(/\s+/).length:0;document.getElementById('ed-wordcount').textContent=wc+' word'+(wc!==1?'s':'');}
+
+// =========== MUSIC PLAYER ===========
+function loadMusicFiles(e){
+  const files=Array.from(e.target.files);
+  files.forEach(f=>{
+    musicFiles.push({name:f.name.replace(/\.[^/.]+$/,''),artist:'Local File',file:f});
+  });
+  renderPlaylist();
+  if(musicFiles.length>0&&!musicPlaying)loadTrack(0);
+  notify('Music','Loaded '+files.length+' track(s).');
+}
+function renderPlaylist(){
+  const c=document.getElementById('music-playlist');
+  if(musicFiles.length===0){c.innerHTML='<div style="font-size:9px;color:var(--text3);text-align:center;padding:8px;">No tracks — upload files above</div>';return;}
+  c.innerHTML='';
+  musicFiles.forEach((t,i)=>{
+    const el=document.createElement('div');
+    el.className='pl-item'+(i===musicIdx?' playing':'');
+    el.innerHTML=`<span class="pl-n">${i+1}</span><span style="flex:1">${t.name}</span><span style="font-size:9px;opacity:0.5">${t.artist}</span>`;
+    el.onclick=()=>loadTrack(i);
+    c.appendChild(el);
+  });
+}
+function loadTrack(idx){
+  musicIdx=idx;
+  const t=musicFiles[idx];
+  if(!t)return;
+  if(audioEl){audioEl.pause();audioEl=null;}
+  audioEl=new Audio(URL.createObjectURL(t.file));
+  audioEl.volume=document.getElementById('music-vol').value/100;
+  audioEl.ontimeupdate=updateMusicProgress;
+  audioEl.onended=musicNext;
+  document.getElementById('music-title').textContent=t.name;
+  document.getElementById('music-artist').textContent=t.artist;
+  renderPlaylist();
+  togglePlay(true);
+}
+function togglePlay(forcePlay){
+  if(!audioEl&&musicFiles.length>0)loadTrack(0);
+  if(!audioEl)return;
+  if(forcePlay||!musicPlaying){audioEl.play();musicPlaying=true;document.getElementById('music-play-btn').textContent='⏸';}
+  else{audioEl.pause();musicPlaying=false;document.getElementById('music-play-btn').textContent='▶';}
+}
+function updateMusicProgress(){
+  if(!audioEl||!audioEl.duration)return;
+  const pct=(audioEl.currentTime/audioEl.duration)*100;
+  document.getElementById('music-fill').style.width=pct+'%';
+  document.getElementById('music-cur').textContent=fmtTime(audioEl.currentTime);
+  document.getElementById('music-dur').textContent=fmtTime(audioEl.duration);
+}
+function fmtTime(s){return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');}
+function seekMusic(e){if(!audioEl||!audioEl.duration)return;const r=e.currentTarget.getBoundingClientRect();audioEl.currentTime=((e.clientX-r.left)/r.width)*audioEl.duration;}
+function setVolume(v){document.getElementById('vol-val').textContent=v;if(audioEl)audioEl.volume=v/100;}
+function musicNext(){const ni=musicShuffleMode?Math.floor(Math.random()*musicFiles.length):(musicIdx+1)%musicFiles.length;if(musicFiles.length>0)loadTrack(ni);}
+function musicPrev(){if(musicFiles.length>0)loadTrack((musicIdx-1+musicFiles.length)%musicFiles.length);}
+function musicRepeat(){musicRepeatMode=!musicRepeatMode;notify('Music',musicRepeatMode?'Repeat ON':'Repeat OFF');}
+function musicShuffle(){musicShuffleMode=!musicShuffleMode;notify('Music',musicShuffleMode?'Shuffle ON':'Shuffle OFF');}
+
+// =========== CALENDAR ===========
+function renderCalendar(){
+  const days=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const months=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  document.getElementById('cal-month-label').textContent=months[calMonth]+' '+calYear;
+  const g=document.getElementById('cal-grid');
+  g.innerHTML=days.map(d=>`<div class="cal-day-hdr">${d}</div>`).join('');
+  const first=new Date(calYear,calMonth,1).getDay();
+  const total=new Date(calYear,calMonth+1,0).getDate();
+  const today=new Date();
+  for(let i=0;i<first;i++)g.innerHTML+=`<div class="cal-day other"></div>`;
+  for(let d=1;d<=total;d++){
+    const isToday=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
+    g.innerHTML+=`<div class="cal-day ${isToday?'today':''}">${d}</div>`;
+  }
+}
+function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+
+// =========== BROWSER ===========
+function brNavigate(){
+  const raw=document.getElementById('browser-url').value.trim();
+  if(!raw)return;
+  if(!proxyUrl){notify('Browser','No proxy configured. Open settings to connect.');showProxyConfig();return;}
+  let url=raw;
+  if(!url.startsWith('http'))url='https://'+url;
+  const frame=document.getElementById('browser-frame');
+  const notice=document.getElementById('browser-proxy-notice');
+  // Build Scramjet proxy URL — registers SW then navigates
+  const base=proxyUrl.replace(/\/$/,'');
+  // Scramjet uses a service worker at /scramjet.sw.js
+  // Navigation path: /scramjet/main/<encoded url>
+  const encoded=encodeURIComponent(url);
+  const proxyNav=base+'/scramjet/main/'+encoded;
+  frame.src=proxyNav;
+  frame.style.display='block';
+  notice.style.display='none';
+  notify('Browser','Loading: '+url);
+  document.getElementById('tab-0').textContent=raw.length>20?raw.substring(0,20)+'...':raw;
+}
+function brBack(){const f=document.getElementById('browser-frame');try{f.contentWindow.history.back();}catch(e){}}
+function brFwd(){const f=document.getElementById('browser-frame');try{f.contentWindow.history.forward();}catch(e){}}
+function brRefresh(){const f=document.getElementById('browser-frame');f.src=f.src;}
+function showProxyConfig(){
+  document.getElementById('browser-frame').style.display='none';
+  document.getElementById('browser-proxy-notice').style.display='flex';
+  if(proxyUrl)document.getElementById('proxy-url-input').value=proxyUrl;
+}
+function saveProxyUrl(){
+  const v=document.getElementById('proxy-url-input').value.trim();
+  if(!v){notify('Browser','Please enter a valid URL.');return;}
+  proxyUrl=v;
+  document.getElementById('s-proxy-url').textContent=v.length>30?v.substring(0,30)+'...':v;
+  document.getElementById('s-proxy-status').textContent='CONNECTED';
+  document.getElementById('s-proxy-status').style.color='var(--neon)';
+  notify('Browser','Proxy connected: '+v);
+}
+function addBrowserTab(){
+  const tabs=document.getElementById('browser-tabs');
+  const n=tabs.querySelectorAll('.br-tab').length+1;
+  const t=document.createElement('div');
+  t.className='br-tab';
+  t.textContent='New Tab '+n;
+  t.onclick=()=>{document.querySelectorAll('.br-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');};
+  tabs.insertBefore(t,tabs.querySelector('.br-tab-add'));
+  document.querySelectorAll('.br-tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+}
+function openExternal(url){window.open(url,'_blank');}
+
+// =========== APP STORE ===========
+const storeApps=[
+  {name:'NEON-Chat',dev:'NeoDev',desc:'Encrypted real-time messaging with neon UI.',cat:'Social',stars:'★★★★★',ic:'💬'},
+  {name:'CyberDraw',dev:'ArtLab',desc:'Vector drawing and pixel art tool.',cat:'Creative',stars:'★★★★☆',ic:'🎨'},
+  {name:'DataVault',dev:'SecureSys',desc:'Encrypted password and secrets manager.',cat:'Security',stars:'★★★★★',ic:'🔐'},
+  {name:'NeonCalc',dev:'MathWorks',desc:'Scientific calculator with neon theme.',cat:'Utility',stars:'★★★☆☆',ic:'🧮'},
+  {name:'PingMap',dev:'NetLab',desc:'Network diagnostics and port scanner.',cat:'Network',stars:'★★★★☆',ic:'📡'},
+  {name:'SynthWave',dev:'AudioOS',desc:'Browser-based synthesizer and beatmaker.',cat:'Music',stars:'★★★★★',ic:'🎹'},
+  {name:'CodePad',dev:'DevTools',desc:'Syntax-highlighted code editor.',cat:'Dev',stars:'★★★★☆',ic:'💻'},
+  {name:'NeoClock',dev:'TimeSys',desc:'World clocks, timers, and alarms.',cat:'Utility',stars:'★★★☆☆',ic:'⏰'},
+  {name:'VaultFS',dev:'SecureSys',desc:'Encrypted virtual filesystem.',cat:'Security',stars:'★★★★☆',ic:'🔒'},
+  {name:'Proxy+',dev:'NetLab',desc:'Advanced proxy config and routing.',cat:'Network',stars:'★★★★★',ic:'🌐'},
+  {name:'NeoMail',dev:'MailSys',desc:'Cyberpunk styled email client.',cat:'Social',stars:'★★★☆☆',ic:'📧'},
+  {name:'Arcade+',dev:'GameDev',desc:'More mini-games for NEON-OS.',cat:'Games',stars:'★★★★★',ic:'🕹️'},
+];
+let installed=new Set(),installPending=new Set();
+function renderAppStore(){
+  document.getElementById('as-cats').innerHTML='';
+  const cats=['All',...new Set(storeApps.map(a=>a.cat))];
+  cats.forEach((c,i)=>{
+    const b=document.createElement('button');
+    b.className='as-cat-btn'+(i===0?' active':'');
+    b.textContent=c;
+    b.onclick=()=>{document.querySelectorAll('.as-cat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');filterApps();};
+    document.getElementById('as-cats').appendChild(b);
+  });
+  filterApps();
+}
+function filterApps(){
+  const q=(document.getElementById('as-search').value||'').toLowerCase();
+  const activeCat=document.querySelector('.as-cat-btn.active')?.textContent||'All';
+  const filtered=storeApps.filter(a=>{
+    const matchCat=activeCat==='All'||a.cat===activeCat;
+    const matchQ=!q||a.name.toLowerCase().includes(q)||a.desc.toLowerCase().includes(q);
+    return matchCat&&matchQ;
+  });
+  const g=document.getElementById('as-grid');
+  g.innerHTML='';
+  filtered.forEach(a=>{
+    const el=document.createElement('div');
+    el.className='as-card';
+    const isInst=installed.has(a.name);
+    const isPending=installPending.has(a.name);
+    const btnLabel=isInst?'INSTALLED':isPending?'INSTALLING...':'INSTALL';
+    const btnClass='as-install'+(isInst||isPending?' installed':'');
+    el.innerHTML=`<div class="as-card-top"><span class="as-card-ic">${a.ic}</span><div><div class="as-card-name">${a.name}</div><div class="as-card-dev">${a.dev}</div></div></div><div class="as-card-desc">${a.desc}</div><div class="as-card-footer"><span class="as-stars">${a.stars}</span><button class="${btnClass}" data-app="${a.name}">${btnLabel}</button></div>`;
+    const btn=el.querySelector('button[data-app]');
+    if(!isInst&&!isPending)btn.onclick=()=>installApp(a.name);
+    g.appendChild(el);
+  });
+}
+function installApp(name){
+  if(installed.has(name)||installPending.has(name))return;
+  installPending.add(name);
+  filterApps();
+  setTimeout(()=>{
+    installPending.delete(name);
+    installed.add(name);
+    filterApps();
+    notify('App Store','"'+name+'" installed successfully.');
+  },1400);
+}
+
+// =========== GAMES ===========
+function launchGame(g){
+  document.getElementById('games-menu').style.display='none';
+  document.getElementById('game-area').style.display='flex';
+  currentGame=g;
+  if(g==='snake')startSnake();
+  else if(g==='tetris')startTetris();
+  else if(g==='memory')startMemory();
+  else if(g==='tictactoe')startTicTacToe();
+  else if(g==='pong')startPong();
+  else if(g==='flappy')startFlappy();
+}
+function exitGame(){
+  document.getElementById('games-menu').style.display='grid';
+  document.getElementById('game-area').style.display='none';
+  if(snakeGame){clearInterval(snakeGame);snakeGame=null;}
+  if(tetrisGame){clearInterval(tetrisGame);tetrisGame=null;}
+  currentGame=null;
+}
+const gc=()=>document.getElementById('game-canvas');
+const gctx=()=>gc().getContext('2d');
+
+// SNAKE
+function startSnake(){
+  document.getElementById('game-score').textContent='SCORE: 0';
+  document.getElementById('game-instructions').textContent='Arrow Keys to move';
+  const c=gc();const ctx=gctx();
+  const sz=20;let snake=[{x:10,y:10}],dir={x:1,y:0},food={x:5,y:5},score=0,running=true;
+  function rndFood(){food={x:Math.floor(Math.random()*(c.width/sz)),y:Math.floor(Math.random()*(c.height/sz))};}
+  function draw(){
+    ctx.fillStyle='rgba(0,255,231,0.03)';ctx.fillRect(0,0,c.width,c.height);
+    // food
+    ctx.fillStyle='#ff00c8';ctx.fillRect(food.x*sz+1,food.y*sz+1,sz-2,sz-2);
+    // snake
+    snake.forEach((s,i)=>{ctx.fillStyle=i===0?'#00ffe7':'rgba(0,255,231,0.5)';ctx.fillRect(s.x*sz+1,s.y*sz+1,sz-2,sz-2);});
+  }
+  function tick(){
+    if(!running)return;
+    const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+    if(head.x<0||head.y<0||head.x>=c.width/sz||head.y>=c.height/sz||snake.some(s=>s.x===head.x&&s.y===head.y)){
+      running=false;notify('Games','Snake: Game over! Score: '+score);return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x&&head.y===food.y){score+=10;document.getElementById('game-score').textContent='SCORE: '+score;rndFood();}
+    else snake.pop();
+    draw();
+  }
+  draw();
+  snakeGame=setInterval(tick,120);
+  document.onkeydown=e=>{
+    if(!running)return;
+    if(e.key==='ArrowUp'&&dir.y===0)dir={x:0,y:-1};
+    else if(e.key==='ArrowDown'&&dir.y===0)dir={x:0,y:1};
+    else if(e.key==='ArrowLeft'&&dir.x===0)dir={x:-1,y:0};
+    else if(e.key==='ArrowRight'&&dir.x===0)dir={x:1,y:0};
+  };
+}
+
+// TETRIS
+const TETROMINOS=[
+  {shape:[[1,1,1,1]],color:'#00ffe7'},
+  {shape:[[1,1],[1,1]],color:'#ffe600'},
+  {shape:[[0,1,0],[1,1,1]],color:'#ff00c8'},
+  {shape:[[1,0],[1,0],[1,1]],color:'#00aaff'},
+  {shape:[[0,1],[0,1],[1,1]],color:'#ff6600'},
+  {shape:[[0,1,1],[1,1,0]],color:'#00ff88'},
+  {shape:[[1,1,0],[0,1,1]],color:'#cc00ff'},
+];
+function startTetris(){
+  document.getElementById('game-score').textContent='SCORE: 0';
+  document.getElementById('game-instructions').textContent='← → to move, ↑ rotate, ↓ drop';
+  const c=gc();const ctx=gctx();
+  const cols=12,rows=16,bs=Math.min(Math.floor(c.width/cols),Math.floor(c.height/rows));
+  c.width=cols*bs;c.height=rows*bs;
+  let board=Array.from({length:rows},()=>Array(cols).fill(0));
+  let score=0,cur=null,cx=0,cy=0;
+  function newPiece(){
+    const t=TETROMINOS[Math.floor(Math.random()*TETROMINOS.length)];
+    cur={shape:t.shape,color:t.color};
+    cx=Math.floor((cols-cur.shape[0].length)/2);cy=0;
+    if(collide())cur=null;
+  }
+  function collide(ox=0,oy=0,shape=cur.shape){
+    for(let r=0;r<shape.length;r++)for(let cc=0;cc<shape[r].length;cc++){
+      if(shape[r][cc]){const nx=cx+cc+ox,ny=cy+r+oy;if(nx<0||nx>=cols||ny>=rows||board[ny]?.[nx])return true;}
+    }
+    return false;
+  }
+  function place(){
+    cur.shape.forEach((r,ri)=>r.forEach((v,ci)=>{if(v)board[cy+ri][cx+ci]=cur.color;}));
+    let cleared=0;
+    board=board.filter(r=>{if(r.every(c=>c)){cleared++;return false;}return true;});
+    while(board.length<rows)board.unshift(Array(cols).fill(0));
+    score+=cleared*100;document.getElementById('game-score').textContent='SCORE: '+score;
+    newPiece();
+  }
+  function rotate(){
+    const s=cur.shape[0].map((_,i)=>cur.shape.map(r=>r[i]).reverse());
+    if(!collide(0,0,s))cur.shape=s;
+  }
+  function draw(){
+    ctx.fillStyle='#070b12';ctx.fillRect(0,0,c.width,c.height);
+    ctx.strokeStyle='rgba(0,255,231,0.05)';
+    for(let r=0;r<rows;r++)for(let cc=0;cc<cols;cc++){ctx.strokeRect(cc*bs,r*bs,bs,bs);}
+    board.forEach((r,ri)=>r.forEach((v,ci)=>{if(v){ctx.fillStyle=v;ctx.fillRect(ci*bs+1,ri*bs+1,bs-2,bs-2);}}));
+    if(cur)cur.shape.forEach((r,ri)=>r.forEach((v,ci)=>{if(v){ctx.fillStyle=cur.color;ctx.fillRect((cx+ci)*bs+1,(cy+ri)*bs+1,bs-2,bs-2);}}));
+  }
+  newPiece();
+  tetrisGame=setInterval(()=>{if(!cur)return;if(!collide(0,1))cy++;else place();draw();},500);
+  document.onkeydown=e=>{
+    if(!cur)return;
+    if(e.key==='ArrowLeft'&&!collide(-1,0))cx--;
+    else if(e.key==='ArrowRight'&&!collide(1,0))cx++;
+    else if(e.key==='ArrowDown'&&!collide(0,1))cy++;
+    else if(e.key==='ArrowUp')rotate();
+    draw();
+  };
+}
+
+// MEMORY
+function startMemory(){
+  document.getElementById('game-score').textContent='PAIRS: 0/8';
+  document.getElementById('game-instructions').textContent='Click cards to match pairs';
+  const c=gc();const ctx=gctx();
+  const emojis=['🔥','💎','⚡','🌊','🎯','🔮','🚀','🤖'];
+  let cards=[...emojis,...emojis].sort(()=>Math.random()-0.5).map((e,i)=>({e,i,flipped:false,matched:false}));
+  let flipped=[],pairs=0,locked=false;
+  const cw=c.width/4,ch=c.height/4;
+  function draw(){
+    ctx.fillStyle='#070b12';ctx.fillRect(0,0,c.width,c.height);
+    cards.forEach(card=>{
+      const x=(card.i%4)*cw+4,y=Math.floor(card.i/4)*ch+4,w=cw-8,h=ch-8;
+      ctx.fillStyle=card.matched?'rgba(0,255,231,0.15)':card.flipped?'rgba(0,255,231,0.1)':'rgba(0,255,231,0.04)';
+      ctx.strokeStyle=card.matched?'rgba(0,255,231,0.4)':'rgba(0,255,231,0.15)';
+      ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.fill();ctx.stroke();
+      if(card.flipped||card.matched){ctx.font=`${h*0.5}px serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(card.e,x+w/2,y+h/2);}
+      else{ctx.fillStyle='rgba(0,255,231,0.2)';ctx.font=`${h*0.3}px monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',x+w/2,y+h/2);}
+    });
+  }
+  draw();
+  c.onclick=e=>{
+    if(locked)return;
+    const rect=c.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const col=Math.floor(mx/(c.width/4)),row=Math.floor(my/(c.height/4));
+    const idx=row*4+col;
+    if(idx<0||idx>=cards.length)return;
+    const card=cards[idx];
+    if(card.flipped||card.matched||flipped.length===2)return;
+    card.flipped=true;flipped.push(card);draw();
+    if(flipped.length===2){
+      locked=true;
+      setTimeout(()=>{
+        if(flipped[0].e===flipped[1].e){flipped.forEach(c=>c.matched=true);pairs++;document.getElementById('game-score').textContent='PAIRS: '+pairs+'/8';if(pairs===8)notify('Games','Memory: You win! All pairs found!');}
+        else flipped.forEach(c=>c.flipped=false);
+        flipped=[];locked=false;draw();
+      },700);
+    }
+  };
+}
+
+// TIC TAC TOE
+function startTicTacToe(){
+  document.getElementById('game-score').textContent='YOUR TURN: X';
+  document.getElementById('game-instructions').textContent='Click a cell to play';
+  const c=gc();const ctx=gctx();
+  let board=Array(9).fill(null),turn='X',gameOver=false;
+  const cw=c.width/3,ch=c.height/3;
+  function draw(){
+    ctx.fillStyle='#070b12';ctx.fillRect(0,0,c.width,c.height);
+    ctx.strokeStyle='rgba(0,255,231,0.3)';ctx.lineWidth=1;
+    for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(cw*i,0);ctx.lineTo(cw*i,c.height);ctx.stroke();ctx.beginPath();ctx.moveTo(0,ch*i);ctx.lineTo(c.width,ch*i);ctx.stroke();}
+    board.forEach((v,i)=>{
+      if(!v)return;
+      const x=(i%3)*cw+cw/2,y=Math.floor(i/3)*ch+ch/2;
+      ctx.fillStyle=v==='X'?'#00ffe7':'#ff00c8';
+      ctx.font=`bold ${Math.min(cw,ch)*0.5}px Orbitron,monospace`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(v,x,y);
+    });
+  }
+  function checkWin(){
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    return lines.find(l=>board[l[0]]&&board[l[0]]===board[l[1]]&&board[l[1]]===board[l[2]]);
+  }
+  function aiMove(){
+    const empty=board.map((v,i)=>v?null:i).filter(v=>v!==null);
+    if(!empty.length)return;
+    const pick=empty[Math.floor(Math.random()*empty.length)];
+    board[pick]='O';turn='X';document.getElementById('game-score').textContent='YOUR TURN: X';
+    draw();
+    const w=checkWin();if(w)notify('Games','AI wins!');
+  }
+  draw();
+  c.onclick=e=>{
+    if(gameOver||turn!=='X')return;
+    const rect=c.getBoundingClientRect();
+    const col=Math.floor((e.clientX-rect.left)/(c.width/3));
+    const row=Math.floor((e.clientY-rect.top)/(c.height/3));
+    const idx=row*3+col;
+    if(board[idx])return;
+    board[idx]='X';turn='O';document.getElementById('game-score').textContent='AI TURN: O';
+    draw();
+    const w=checkWin();
+    if(w){notify('Games','You win!');gameOver=true;return;}
+    if(board.every(v=>v)){notify('Games','Draw!');gameOver=true;return;}
+    setTimeout(()=>{aiMove();const w2=checkWin();if(w2){notify('Games','AI wins!');gameOver=true;}},400);
+  };
+}
+
+// PONG
+function startPong(){
+  document.getElementById('game-score').textContent='SCORE: 0';
+  document.getElementById('game-instructions').textContent='Move mouse to control paddle';
+  const c=gc();const ctx=gctx();
+  let py=c.height/2-30,score=0;
+  let bx=c.width/2,by=c.height/2,bdx=3,bdy=2;
+  let aiy=c.height/2-30;
+  c.onmousemove=e=>{const r=c.getBoundingClientRect();py=e.clientY-r.top-30;};
+  function tick(){
+    ctx.fillStyle='#070b12';ctx.fillRect(0,0,c.width,c.height);
+    ctx.strokeStyle='rgba(0,255,231,0.1)';ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(c.width/2,0);ctx.lineTo(c.width/2,c.height);ctx.stroke();ctx.setLineDash([]);
+    // paddles
+    ctx.fillStyle='#00ffe7';ctx.fillRect(10,py,8,60);
+    ctx.fillStyle='#ff00c8';ctx.fillRect(c.width-18,aiy,8,60);
+    // ball
+    ctx.fillStyle='#ffe600';ctx.beginPath();ctx.arc(bx,by,6,0,Math.PI*2);ctx.fill();
+    bx+=bdx;by+=bdy;
+    if(by<6||by>c.height-6)bdy=-bdy;
+    if(bx<26&&by>py&&by<py+60){bdx=Math.abs(bdx);score++;document.getElementById('game-score').textContent='SCORE: '+score;}
+    if(bx>c.width-26&&by>aiy&&by<aiy+60)bdx=-Math.abs(bdx);
+    if(bx<0||bx>c.width){bx=c.width/2;by=c.height/2;}
+    aiy+=(by-aiy-30)*0.05;
+  }
+  tetrisGame=setInterval(()=>{tick();},16);
+}
+
+// FLAPPY
+function startFlappy(){
+  document.getElementById('game-score').textContent='SCORE: 0';
+  document.getElementById('game-instructions').textContent='Click or Space to flap';
+  const c=gc();const ctx=gctx();
+  let bird={x:60,y:c.height/2,vy:0},pipes=[],score=0,frame=0,alive=true;
+  function addPipe(){const gap=80,gy=60+Math.random()*(c.height-gap-120);pipes.push({x:c.width,top:gy,bot:gy+gap});}
+  addPipe();
+  function flap(){if(alive)bird.vy=-5;}
+  c.onclick=flap;
+  document.addEventListener('keydown',e=>{if(e.code==='Space')flap();});
+  function tick(){
+    if(!alive)return;
+    ctx.fillStyle='#070b12';ctx.fillRect(0,0,c.width,c.height);
+    bird.vy+=0.25;bird.y+=bird.vy;
+    ctx.fillStyle='#ffe600';ctx.beginPath();ctx.arc(bird.x,bird.y,10,0,Math.PI*2);ctx.fill();
+    pipes.forEach(p=>{
+      p.x-=2;
+      ctx.fillStyle='rgba(0,255,231,0.4)';ctx.fillRect(p.x,0,20,p.top);ctx.fillRect(p.x,p.bot,20,c.height-p.bot);
+      if(bird.x>p.x&&bird.x<p.x+20&&(bird.y<p.top||bird.y>p.bot)){alive=false;notify('Games','Flappy: Score '+score);}
+    });
+    pipes=pipes.filter(p=>p.x>-20);
+    if(frame%80===0)addPipe();
+    pipes.forEach(p=>{if(p.x===58){score++;document.getElementById('game-score').textContent='SCORE: '+score;}});
+    if(bird.y>c.height||bird.y<0){alive=false;notify('Games','Flappy: Score '+score);}
+    frame++;
+  }
+  tetrisGame=setInterval(tick,16);
+}
+
+// =========== SETTINGS ===========
+function setAccent(c1,c2){document.documentElement.style.setProperty('--neon',c1);document.documentElement.style.setProperty('--neon2',c2);notify('Settings','Accent color updated.');}
+function toggleScanlines(){const el=document.querySelector('#wallpaper .scanline');if(el)el.style.display=document.getElementById('tog-scanlines').checked?'block':'none';}
+function toggleGrid(){const el=document.querySelector('#wallpaper .grid');if(el)el.style.display=document.getElementById('tog-grid').checked?'block':'none';}
+function updateSettings(){
+  if(proxyUrl){document.getElementById('s-proxy-url').textContent=proxyUrl.length>30?proxyUrl.substring(0,30)+'...':proxyUrl;document.getElementById('s-proxy-status').textContent='CONNECTED';document.getElementById('s-proxy-status').style.color='var(--neon)';}
+}
+
+// =========== NOTIFICATIONS ===========
+function notify(title,msg){
+  const s=document.getElementById('notif-stack');
+  const n=document.createElement('div');
+  n.className='notif';
+  n.innerHTML=`<div class="notif-title">${title.toUpperCase()}</div><div class="notif-msg">${msg}</div>`;
+  s.appendChild(n);
+  setTimeout(()=>{n.style.animation='fadeOut 0.3s ease forwards';setTimeout(()=>n.remove(),300);},3000);
+}
+
+// =========== CONTEXT MENU ===========
+document.addEventListener('contextmenu',e=>{e.preventDefault();const m=document.getElementById('ctx-menu');m.style.display='block';m.style.left=Math.min(e.clientX,window.innerWidth-180)+'px';m.style.top=Math.min(e.clientY,window.innerHeight-200)+'px';});
+document.addEventListener('click',()=>{document.getElementById('ctx-menu').style.display='none';});
+function ctxAction(a){openApp(a);document.getElementById('ctx-menu').style.display='none';}
+
+// =========== START MENU ===========
+function toggleStart(){document.getElementById('startmenu').classList.toggle('open');}
+
+// =========== REBOOT ===========
+function reboot(){
+  document.getElementById('boot').style.display='flex';document.getElementById('boot').style.opacity='1';
+  document.querySelectorAll('.win').forEach(w=>w.classList.remove('open'));
+  openApps={};updateTaskbar();
+  setTimeout(()=>{document.getElementById('boot').style.animation='fadeOut 0.6s ease forwards';document.getElementById('boot').style.opacity='0';setTimeout(()=>{document.getElementById('boot').style.display='none';notify('NEON-OS','System restarted.');},600);},2500);
+}
+
+// close start menu on outside click
+document.addEventListener('mousedown',e=>{if(!e.target.closest('#startmenu')&&!e.target.closest('.logo'))document.getElementById('startmenu').classList.remove('open');});
+</script>
+</body>
+</html>
